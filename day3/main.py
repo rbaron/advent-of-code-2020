@@ -1,4 +1,4 @@
-import argparse
+import sys
 from math import prod
 
 
@@ -25,11 +25,7 @@ def part2(arg):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--test', action='store_true')
-    args = ap.parse_args()
-
-    with open('test-input.txt' if args.test else 'input.txt', 'r') as f:
+    with open(sys.argv[1], 'r') as f:
         arg = f.read().split('\n')
 
     print(part1(arg))
