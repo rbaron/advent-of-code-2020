@@ -1,5 +1,4 @@
-import sys
-
+import fileinput
 
 def part1(arg):
     pass
@@ -10,8 +9,7 @@ def part2(arg):
 
 
 def main():
-    with open(sys.arg[1], 'r') as f:
-        arg = f.read().split('\n')
+    arg = [line.strip() for line in fileinput.input()]
 
     print(part1(arg))
     print(part2(arg))
