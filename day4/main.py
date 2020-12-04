@@ -1,21 +1,28 @@
 import fileinput
 
 
-def part1(arg):
-    valid = 0
-    current_pass_keys = set()
-    for line in arg:
+def parse_passports(lines):
+    passports = []
+    current_pass_keys = {}
+    for line in lines:
         if line == "":
-            valid += 1 if (len(current_pass_keys) == 8 or (len(current_pass_keys)
-                                                           == 7 and 'cid' not in current_pass_keys)) else 0
-            current_pass_keys = set()
+            passports.append(current_pass_keys)
+            current_pass_keys = {}
         kvs = line.split()
         for kv in kvs:
             k, v = kv.split(':')
-            current_pass_keys.add(k)
-    valid += 1 if (len(current_pass_keys) == 8 or (len(current_pass_keys)
-                                                   == 7 and 'cid' not in current_pass_keys)) else 0
-    return valid
+            current_pass_keys[k] = v
+
+    if current_pass_keys:
+        passports.append(current_pass_keys)
+    return passports
+
+
+def part1(arg):
+    return sum(
+        len(passport) == 8 or (len(passport) == 7 and 'cid' not in passport)
+        for passport in parse_passports(arg)
+    )
 
 
 def part2(arg):
@@ -28,11 +35,8 @@ def part2(arg):
             return False
 
     def valid_hair(value):
-        if value[0] != '#':
-            return False
         try:
-            int(value[1:], 16)
-            return True
+            return value[0] == '#' and int(value[1:], 16) >= 0
         except ValueError:
             return False
 
@@ -40,29 +44,17 @@ def part2(arg):
         if not(len(kvs) == 8 or (len(kvs) == 7 and 'cid' not in kvs)):
             return False
 
-        validations = (
+        return all((
             (1920 <= int(kvs['byr']) <= 2002),
             (2010 <= int(kvs['iyr']) <= 2020),
             (2020 <= int(kvs['eyr']) <= 2030),
             valid_height(kvs['hgt']),
             valid_hair(kvs['hcl']),
-            kvs['ecl'] in {'amb', 'blu', 'brn', 'gry', 'grn', 'hzl', 'oth', },
+            kvs['ecl'] in {'amb', 'blu', 'brn', 'gry', 'grn', 'hzl', 'oth'},
             len(kvs['pid']) == 9  # only numbers?
-        )
-        return all(validations)
+        ))
 
-    valid = 0
-    current_pass_keys = {}
-    for line in arg:
-        if line == "":
-            valid += 1 if is_valid(current_pass_keys) else 0
-            current_pass_keys = {}
-        kvs = line.split()
-        for kv in kvs:
-            k, v = kv.split(':')
-            current_pass_keys[k] = v
-    valid += 1 if is_valid(current_pass_keys) else 0
-    return valid
+    return sum(map(is_valid, parse_passports(arg)))
 
 
 def main():
