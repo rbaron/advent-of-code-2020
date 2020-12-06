@@ -1,50 +1,19 @@
 import fileinput
-
-
-def part1(arg):
-    pass
-
-
-def part2(arg):
-    pass
+from functools import reduce
+import operator
 
 
 def main():
-    arg = [line.strip() for line in fileinput.input()]
+    groups = [group.split('\n')
+              for group in ''.join(fileinput.input()).split('\n\n')]
 
-    # 5m57s
     # Part 1
-    total = 0
-    s = set()
-    for line in arg:
-        if line == '':
-            total += len(s)
-            s = set()
-        for c in line:
-            s.add(c)
-    total += len(s)
-    s = set()
-    print(total)
+    print(sum(len(reduce(operator.or_, map(set, group)))
+              for group in groups))
 
-    # 5m34s
     # Part 2
-    total = 0
-    begin = True
-    s = set()
-    for line in arg:
-        if begin:
-            s = set(line)
-            begin = False
-            continue
-        if line == '':
-            total += len(s)
-            begin = True
-        s = s & set(line)
-    total += len(s)
-    print(total)
-
-    print(part1(arg))
-    print(part2(arg))
+    print(sum(len(reduce(operator.and_, map(set, group)))
+              for group in groups))
 
 
 if __name__ == '__main__':
