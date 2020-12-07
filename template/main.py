@@ -1,5 +1,6 @@
 import fileinput
 
+
 def part1(arg):
     pass
 
