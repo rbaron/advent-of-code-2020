@@ -6,40 +6,38 @@ def part1(instrs):
     acc = 0
     ip = 0
     seen = set()
-    while True:
-        if ip == len(instrs):
-            return (True, acc)
-
+    while ip != len(instrs):
         seen.add(ip)
         op, arg = instrs[ip]
+        ip += 1
         if op == 'acc':
             acc += arg
-            ip += 1
         elif op == 'jmp':
-            next_ip = ip + arg
-            if next_ip in seen:
+            ip += arg - 1
+            if ip in seen:
                 return (False, acc)
-            ip = next_ip
-        else:
-            ip += 1
+    return (True, acc)
 
 
 def part2(instrs):
+    def flip(i):
+        instrs[i] = ('nop', arg) if instrs[i][0] == 'jmp' else ('jmp', arg)
+
     for i, (op, arg) in enumerate(instrs):
         if op == 'nop' or op == 'jmp':
-            maybe_instrs = instrs[:]
-            maybe_instrs[i] = ('nop', arg) if op == 'jmp' else ('jmp', arg)
-            halts, acc = part1(maybe_instrs)
+            flip(i)
+            halts, acc = part1(instrs)
             if halts:
                 return acc
+            flip(i)
 
 
 def main():
-    arg = [line.strip() for line in fileinput.input()]
-    instrs = []
-    for line in arg:
-        op, argument = line.split()
-        instrs.append((op, int(argument)))
+    def parse_instr(line):
+        op, arg = line.split()
+        return op, int(arg)
+
+    instrs = map(parse_instr, fileinput.input())
 
     # 9m23s
     print(part1(instrs))
