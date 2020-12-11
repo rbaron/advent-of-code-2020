@@ -1,100 +1,76 @@
 import fileinput
 import copy
 
-
-def neighbors(y, x, table):
-    return [
-        (y + ny, x + nx)
-        for ny, nx in [
-            (-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)
-        ]
-        if 0 <= y + ny < len(table) and 0 <= x + nx < len(table[0])
-    ]
+DIRECTIONS = (
+    (-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)
+)
 
 
-def deep_eq(t1, t2):
-    return all(
-        t1[y][x] == t2[y][x]
-        for y in range(len(t1))
-        for x in range(len(t1[0]))
+def cells(table):
+    return (cell for row in table for cell in row)
+
+
+def get_neighbors_part1(table, y, x):
+    return (
+        (y + dy, x + dx)
+        for dy, dx in DIRECTIONS
+        if 0 <= y + dy < len(table) and 0 <= x + dx < len(table[0]) and table[y][x] != '.'
     )
 
 
-def part1(arg):
+def get_neighbors_part2(table, y, x):
+    for direction in DIRECTIONS:
+        step = 1
+        ny = y + step * direction[0]
+        nx = x + step * direction[1]
+        while 0 <= ny < len(table) and 0 <= nx < len(table[0]):
+            if table[ny][nx] != '.':
+                yield (ny, nx)
+                break
+            step += 1
+            ny = y + step * direction[0]
+            nx = x + step * direction[1]
+
+
+def run(table, get_neighbors_fn, min_occupied_neighbors):
+    def evolve(cell, y, x):
+        occ_neighbors = sum(
+            table[ny][nx] == '#' for ny, nx in get_neighbors_part1(table, y, x))
+        if table[y][x] == 'L' and occ_neighbors == 0:
+            return '#'
+        elif table[y][x] == '#' and occ_neighbors >= min_occupied_neighbors:
+            return 'L'
+        else:
+            return cell
+
     def run_one(current_table):
         new_table = copy.deepcopy(current_table)
         for y in range(len(table)):
             for x in range(len(table[0])):
-                occ_neighbors = sum(
-                    table[ny][nx] == '#' for ny, nx in neighbors(y, x, table))
-                if table[y][x] == 'L' and occ_neighbors == 0:
-                    new_table[y][x] = '#'
-                elif table[y][x] == '#' and occ_neighbors >= 4:
-                    new_table[y][x] = 'L'
+                new_table[y][x] = evolve(current_table[y][x], y, x)
         return new_table
 
-    table = copy.deepcopy(arg)
+    n_occ = sum(cell == '#' for cell in cells(table))
     while True:
-        new_table = run_one(table)
-        if deep_eq(table, new_table):
-            return sum(
-                table[y][x] == '#'
-                for y in range(len(table))
-                for x in range(len(table[0]))
-            )
-        table = new_table
+        table = run_one(table)
+        new_occ = sum(cell == '#' for cell in cells(table))
+        if new_occ == n_occ:
+            return new_occ
+        n_occ = new_occ
 
 
-def neighbors2(y, x, table):
-    directions = [
-        (-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)
-    ]
-    total = 0
-    for direction in directions:
-        ny = y + direction[0]
-        nx = x + direction[1]
-        while 0 <= ny < len(table) and 0 <= nx < len(table[0]):
-            if table[ny][nx] == '#':
-                total += 1
-                break
-            elif table[ny][nx] == 'L':
-                break
-            ny = ny + direction[0]
-            nx = nx + direction[1]
-    return total
+def part1(table):
+    return run(table, get_neighbors_part1, 4)
 
 
-def part2(arg):
-    def run_one(current_table):
-        new_table = copy.deepcopy(current_table)
-        for y in range(len(current_table)):
-            for x in range(len(current_table[0])):
-                occ_neighbors = neighbors2(y, x, current_table)
-                if current_table[y][x] == 'L' and occ_neighbors == 0:
-                    new_table[y][x] = '#'
-                elif current_table[y][x] == '#' and occ_neighbors >= 5:
-                    new_table[y][x] = 'L'
-        return new_table
-
-    table = copy.deepcopy(arg)
-    while True:
-        new_table = run_one(table)
-        print('Ran')
-        for r in new_table:
-            print(''.join(r))
-        if deep_eq(table, new_table):
-            return sum(
-                new_table[y][x] == '#'
-                for y in range(len(table))
-                for x in range(len(table[0]))
-            )
-        table = new_table
+def part2(table):
+    return run(table, get_neighbors_part2, 5)
 
 
 def main():
     arg = [list(line.strip()) for line in fileinput.input()]
 
-    # print(part1(arg))
+    print(part1(arg))
     print(part2(arg))
 
 
