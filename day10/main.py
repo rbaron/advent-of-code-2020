@@ -48,11 +48,11 @@ def part2_dp(arg):
 def main():
     arg = [int(line.strip()) for line in fileinput.input()]
 
-    # 9m21s
+    # 9m21s.
     print(part1(arg))
     # +Inf.
     # print(part2(arg))
-    # +Inf
+    # +Inf.
     print(part2_dp(arg))
 
 
