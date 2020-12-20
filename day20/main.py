@@ -94,7 +94,6 @@ def find_orientation(rows, predicate):
     for possible_rows in orientations(rows):
         if predicate(possible_rows):
             return possible_rows
-    raise RuntimeError('Unable to find orientation matching predicate')
 
 
 def try_to_solve_for_corners(tiles_by_id, c1r, c2r, c3r, c4r, used):
@@ -131,6 +130,7 @@ def try_to_solve_for_corners(tiles_by_id, c1r, c2r, c3r, c4r, used):
                         continue
                     grid[r][c] = chosen
                     used.add(candidate_id)
+                    break
                 if chosen is None:
                     raise RuntimeError(
                         'None of the unused candidates had suitable orientations!')
@@ -150,6 +150,7 @@ def try_to_solve_for_corners(tiles_by_id, c1r, c2r, c3r, c4r, used):
                         continue
                     grid[r][c] = chosen
                     used.add(candidate_id)
+                    break
                 if chosen is None:
                     raise RuntimeError(
                         'None of the unused candidates had suitable orientations!')
@@ -170,6 +171,7 @@ def try_to_solve_for_corners(tiles_by_id, c1r, c2r, c3r, c4r, used):
                         continue
                     grid[r][c] = chosen
                     used.add(candidate_id)
+                    break
                 if chosen is None:
                     raise RuntimeError(
                         'None of the unused candidates had suitable orientations!')
@@ -184,7 +186,9 @@ def try_to_solve_for_corners(tiles_by_id, c1r, c2r, c3r, c4r, used):
     if left_border(c4r) != right_border(grid[h-1][w-2]):
         raise RuntimeError
 
-    assert(len(used) == len(tiles_by_id))
+    if len(used) != len(tiles_by_id):
+        raise RuntimeError
+
     return grid
 
 
@@ -192,45 +196,88 @@ def pretty_print_grid(grid):
     w = len(grid)
     for row in grid:
         for line_n in range(len(row[0][0])):
-                print(' '.join([tile[line_n] for tile in row]))
+            print(' '.join([tile[line_n] for tile in row]))
         print()
 
 
-def solve(tiles_by_id):
-    unordered_corners = get_corners(tiles_by_id)
-    grid = None
-    tiles_by_border = get_tiles_by_border(tiles_by_id)
-    for c1, c2, c3, c4 in itertools.permutations(unordered_corners):
-        # Each corner can also have different orientations
-        for c1r, c2r, c3r, c4r in itertools.product(
-            [o for o in orientations(tiles_by_id[c1]) if len(tiles_by_border[cannonical_border(
-                top_border(o))]) == 1 and len(tiles_by_border[cannonical_border(left_border(o))]) == 1],
-            [o for o in orientations(tiles_by_id[c2]) if len(tiles_by_border[cannonical_border(
-                top_border(o))]) == 1 and len(tiles_by_border[cannonical_border(right_border(o))]) == 1],
-            [o for o in orientations(tiles_by_id[c3]) if len(tiles_by_border[cannonical_border(
-                left_border(o))]) == 1 and len(tiles_by_border[cannonical_border(bottom_border(o))]) == 1],
-            [o for o in orientations(tiles_by_id[c4]) if len(tiles_by_border[cannonical_border(
-                right_border(o))]) == 1 and len(tiles_by_border[cannonical_border(bottom_border(o))]) == 1],
-        ):
-            used = {c1, c2, c3, c4}
-            try:
-                grid = try_to_solve_for_corners(
-                    tiles_by_id, c1r, c2r, c3r, c4r, used)
-                print('found grid: ')
-                print('using c1', c1)
-                # print('\n'.join(grid[0][0]))
-                pretty_print_grid(grid)
+def join_grid(grid):
+    w = len(grid)
+    out = []
+    for row in grid:
+        for line_n in range(len(row[0][0])):
+            out.append(''.join([tile[line_n] for tile in row]))
+    return out
 
-            except RuntimeError as e:
-                # print('oh no!')
+
+def solve(tiles_by_id):
+    corner1 = next(get_corners(tiles_by_id))
+    tiles_by_border = get_tiles_by_border(tiles_by_id)
+    c1 = find_orientation(
+        tiles_by_id[corner1], lambda rows: len(tiles_by_border[cannonical_border(top_border(rows))]) == 1 and
+        len(tiles_by_border[cannonical_border(left_border(rows))]) == 1)
+
+    w = h = int(sqrt(len(tiles_by_id)))
+    grid = [[None] * w for _ in range(h)]
+    grid[0][0] = c1
+    available = set(tiles_by_id.keys())
+    available.remove(corner1)
+
+    for r in range(h):
+        for c in range(w):
+            # If this is a corner, continue.
+            if grid[r][c] is not None:
                 continue
 
-    # if grid is not None:
-    #     print('Found a grid!!')
-    # else:
-    #     print('Unable to find grid')
+            if c == 0:
+                edge = bottom_border(grid[r-1][0])
+                for tile_id in available:
+                    orientation = find_orientation(
+                        tiles_by_id[tile_id], lambda rows: top_border(rows) == edge)
+                    if orientation:
+                        grid[r][c] = orientation
+                        available.remove(tile_id)
+                        break
+            else:
+                edge = right_border(grid[r][c - 1])
+                for tile_id in available:
+                    orientation = find_orientation(
+                        tiles_by_id[tile_id], lambda rows: left_border(rows) == edge)
+                    if orientation:
+                        grid[r][c] = orientation
+                        available.remove(tile_id)
+                        break
+    return grid
 
-    # return grid
+
+patt = \
+    '''                  #
+#    ##    ##    ###
+ #  #  #  #  #  #   '''
+
+
+def find_patterns(image):
+    deltas = [
+        (delta_r, delta_c)
+        for delta_r, row in enumerate(patt.split('\n'))
+        for delta_c, char in enumerate(row)
+        if char == '#'
+    ]
+
+    def matches_char(coord):
+        r, c = coord
+        if r >= len(image) or c >= len(image[0]):
+            return False
+        return image[r][c] == '#'
+
+    counts = 0
+    for r in range(len(image)):
+        for c in range(len(image[0])):
+            if all(
+                matches_char((r + delta[0], c + delta[1]))
+                for delta in deltas
+            ):
+                counts += 1
+    return counts
 
 
 def part2(tiles_by_id):
@@ -241,16 +288,28 @@ def part2(tiles_by_id):
 
     grid = solve(tiles_by_id)
 
-    if not grid:
-        print('Unable to find grid')
-        return
+    t_s = len(grid[0][0])
 
-    print(grid)
+    def strip_tile(tile):
+        return [
+            row[1:t_s-1]
+            for row in tile[1:t_s-1]
+        ]
 
-    for row in grid:
-        for tile in row:
-            print('\n'.join(tile))
-            print()
+    stripped = [
+        [strip_tile(tile) for tile in row]
+        for row in grid
+    ]
+    pretty_print_grid(stripped)
+    image = join_grid(stripped)
+
+    for orientation in orientations(image):
+        if n := find_patterns(orientation):
+            print('FOUND', n)
+            print('\n'.join(orientation))
+            monster = n * sum(c == '#' for c in patt)
+            nonmonster = sum(c == '#' for row in orientation for c in row) - monster
+            return nonmonster
 
 
 def main():
