@@ -71,10 +71,9 @@ def cannonical_borders(rows):
         yield cannonical_border(border)
 
 
-# def flips(rows):
-#     yield rows
-#     yield list(reversed(rows))
-#     # yield [''.join(reversed(r)) for r in rows]
+def flips(rows):
+    yield rows
+    yield list(reversed(rows))
 
 
 def rotate(rows):
@@ -84,112 +83,14 @@ def rotate(rows):
 def orientations(rows):
     rotated = copy.deepcopy(rows)
     for i in range(4):
-        yield rotated
-        yield list(reversed(rotated))
+        yield from flips(rotated)
         rotated = rotate(rotated)
-        # yield from flips(rotated)
 
 
 def find_orientation(rows, predicate):
     for possible_rows in orientations(rows):
         if predicate(possible_rows):
             return possible_rows
-
-
-def try_to_solve_for_corners(tiles_by_id, c1r, c2r, c3r, c4r, used):
-    # print('used', used)
-    w = h = int(sqrt(len(tiles_by_id)))
-    tiles_by_border = get_tiles_by_border(tiles_by_id)
-
-    grid = [[None] * w for _ in range(h)]
-    grid[0][0] = c1r
-    grid[0][w-1] = c2r
-    grid[h-1][0] = c3r
-    grid[h-1][w-1] = c4r
-
-    for r in range(h):
-        for c in range(w):
-            # If this is a corner, continue.
-            if grid[r][c] is not None:
-                continue
-
-            # Find the edge we need to match.
-            if c == 0:
-                edge = bottom_border(grid[r-1][0])
-                # Find the node whose top row matches the bottom row of the upper node.
-                # Careful not to reuse!
-                candidate_ids = tiles_by_border[cannonical_border(edge)]
-                chosen = None
-                for candidate_id in candidate_ids:
-                    if candidate_id in used:
-                        continue
-                    try:
-                        chosen = find_orientation(
-                            tiles_by_id[candidate_id], lambda rows: top_border(rows) == edge)
-                    except RuntimeError:
-                        continue
-                    grid[r][c] = chosen
-                    used.add(candidate_id)
-                    break
-                if chosen is None:
-                    raise RuntimeError(
-                        'None of the unused candidates had suitable orientations!')
-            elif r == 0:
-                edge = right_border(grid[r][c - 1])
-                # Find the node whose top row matches the bottom row of the upper node.
-                # Careful not to reuse!
-                candidate_ids = tiles_by_border[cannonical_border(edge)]
-                chosen = None
-                for candidate_id in candidate_ids:
-                    if candidate_id in used:
-                        continue
-                    try:
-                        chosen = find_orientation(
-                            tiles_by_id[candidate_id], lambda rows: left_border(rows) == edge)
-                    except RuntimeError as e:
-                        continue
-                    grid[r][c] = chosen
-                    used.add(candidate_id)
-                    break
-                if chosen is None:
-                    raise RuntimeError(
-                        'None of the unused candidates had suitable orientations!')
-            else:
-                l_edge = right_border(grid[r][c - 1])
-                t_edge = bottom_border(grid[r - 1][c])
-                # Find the node whose top row matches the bottom row of the upper node.
-                # Careful not to reuse!
-                candidate_ids = tiles_by_border[cannonical_border(l_edge)]
-                chosen = None
-                for candidate_id in candidate_ids:
-                    if candidate_id in used:
-                        continue
-                    try:
-                        chosen = find_orientation(
-                            tiles_by_id[candidate_id], lambda rows: left_border(rows) == l_edge and top_border(rows) == t_edge)
-                    except RuntimeError as e:
-                        continue
-                    grid[r][c] = chosen
-                    used.add(candidate_id)
-                    break
-                if chosen is None:
-                    raise RuntimeError(
-                        'None of the unused candidates had suitable orientations!')
-
-    # Missing checks
-    if left_border(c2r) != right_border(grid[0][1]):
-        raise RuntimeError
-    if top_border(c3r) != bottom_border(grid[1][0]):
-        raise RuntimeError
-    if top_border(c4r) != bottom_border(grid[h-2][w-1]):
-        raise RuntimeError
-    if left_border(c4r) != right_border(grid[h-1][w-2]):
-        raise RuntimeError
-
-    if len(used) != len(tiles_by_id):
-        raise RuntimeError
-
-    return grid
 
 
 def pretty_print_grid(grid):
@@ -249,7 +150,7 @@ def solve(tiles_by_id):
     return grid
 
 
-patt = \
+MONSTER_PATTERN = \
     '''                  #
 #    ##    ##    ###
  #  #  #  #  #  #   '''
@@ -258,7 +159,7 @@ patt = \
 def find_patterns(image):
     deltas = [
         (delta_r, delta_c)
-        for delta_r, row in enumerate(patt.split('\n'))
+        for delta_r, row in enumerate(MONSTER_PATTERN.split('\n'))
         for delta_c, char in enumerate(row)
         if char == '#'
     ]
@@ -288,27 +189,26 @@ def part2(tiles_by_id):
 
     grid = solve(tiles_by_id)
 
-    t_s = len(grid[0][0])
+    tile_size = len(grid[0][0])
 
     def strip_tile(tile):
         return [
-            row[1:t_s-1]
-            for row in tile[1:t_s-1]
+            row[1:tile_size-1]
+            for row in tile[1:tile_size-1]
         ]
 
     stripped = [
         [strip_tile(tile) for tile in row]
         for row in grid
     ]
-    pretty_print_grid(stripped)
+
     image = join_grid(stripped)
 
     for orientation in orientations(image):
         if n := find_patterns(orientation):
-            print('FOUND', n)
-            print('\n'.join(orientation))
-            monster = n * sum(c == '#' for c in patt)
-            nonmonster = sum(c == '#' for row in orientation for c in row) - monster
+            monster = n * sum(c == '#' for c in MONSTER_PATTERN)
+            nonmonster = sum(
+                c == '#' for row in orientation for c in row) - monster
             return nonmonster
 
 
@@ -322,59 +222,8 @@ def main():
     tiles_by_id = dict(parse_tile(lines)
                        for lines in ''.join(fileinput.input()).split('\n\n'))
 
-    # print(tiles_by_id)
-    tiles = list(tiles_by_id.values())
-    # print('\n'.join(tiles[0]))
-    # for border in borders(tiles[0]):
-    #     print('b ', border)
-    # for rows in flips(['abc', 'def', 'ghi']):
-    #     print('flipped:')
-    #     print(rows)
-    # t = ['abc', 'def', 'ghi']
-    # for o in orientations(t):
-    #     print('\n')
-    #     print('\n'.join(o))
-    # print(t)
-    # for r in range(4):
-    #     t = rotate(t)
-    #     print('rotated')
-    #     print('\n'.join(t))
-    # t = tiles_by_id[1951]
-    # for o in orientations(t):
-    #     print('ori')
-    #     print('\n'.join(o))
-
-    # print(part1(tiles_by_id))
+    print(part1(tiles_by_id))
     print(part2(tiles_by_id))
-
-    tiles_by_border = get_tiles_by_border(tiles_by_id)
-    # b = '#...##.#..'
-    # print('cano:', cannonical_border(b))
-    # print(tiles_by_border[b])
-    # t = tiles_by_id[1951]
-    # for o in orientations(t):
-    #     print('\n')
-    #     print('\n'.join(o))
-    # tt = '''#...##.#..
-    #     ..#.#..#.#
-    #     .###....#.
-    #     ###.##.##.
-    #     .###.#####
-    #     .##.#....#
-    #     #...######
-    #     .....#..##
-    #     #.####...#
-    #     #.##...##.'''
-    # t = [e.strip() for e in tt.split('\n')]
-    # for o in orientations(t):
-    #     tb = top_border(t)
-    #     lb = left_border(t)
-    #     if len(tiles_by_border[cannonical_border(top_border(o))]) == 1 and len(tiles_by_border[cannonical_border(left_border(o))]) == 1:
-    #         print('top: ', tiles_by_border[cannonical_border(tb)])
-    #         print('left: ', tiles_by_border[cannonical_border(lb)])
-    #         print('found')
-    #         print('\n'.join(o))
-    #         print()
 
 
 if __name__ == '__main__':
