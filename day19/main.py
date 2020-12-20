@@ -1,7 +1,8 @@
 import fileinput
+from functools import lru_cache
 
 
-def matches(string, rules):
+def matches_part1(string, rules):
     def inner(rule_n, i):
         rule_type, clauses = rules[rule_n]
         if rule_type == 'leaf':
@@ -17,46 +18,61 @@ def matches(string, rules):
                     if j >= len(string):
                         matched_all = False
                         break
-                    # Problem: with loops, we might match in more than one ways!
-                    # Idea: do a dfs here.
-
-                    new_j, matched = inner(sub_rule_n, j)
-                    # if rule_n in [0, 11]:
-                    #     print(f'rule n: {rule_n} from {j}:{new_j}: {string[j:new_j]}. sub rule: {sub_rule_n}, matched: {matched}')
-                    j = new_j
+                    j, matched = inner(sub_rule_n, j)
                     if not matched:
                         matched_all = False
                         break
-                if matched_all and (True if rule_n != 0 else j == len(string)):
+                if matched_all:
                     return j, True
             return i, False
     i, matched = inner(0, 0)
     return matched and i == len(string)
 
 
+def matches_part2(string, rules):
+    @lru_cache
+    def inner(rule_n, substr):
+        if not substr:
+            return False
+        rule_type, clauses = rules[rule_n]
+        if rule_type == 'leaf':
+            return substr == clauses
+        else:
+            if rule_n == 8:
+                return all(inner(42, substr[i:i+8]) for i in range(0, len(substr), 8))
+            elif rule_n == 11:
+                middle = len(substr) // 2
+                return (
+                    all(inner(42, substr[i:i+8]) for i in range(0, middle, 8)) and
+                    all(inner(31, substr[i:i+8]) for i in range(middle, len(substr), 8)))
+
+            # Regular rules
+            for clause in clauses:
+                if len(clause) == 1:
+                    if inner(clause[0], substr):
+                        return True
+                elif len(clause) == 2:
+                    # Return True if there is a split that matches both halves.
+                    for i in range(0, len(substr)):
+                        r1, r2 = clause
+                        if inner(r1, substr[:i]) and inner(r2, substr[i:]):
+                            return True
+                else:
+                    raise RuntimeError(
+                        f'Invalid number of rules: {len(clause)}')
+            return False
+
+    return inner(0, string)
+
+
 def part1(rules, strings):
-    return sum(matches(string, rules) for string in strings)
+    return sum(matches_part1(string, rules) for string in strings)
 
 
 def part2(rules, strings):
-    # 8: matches 42 one of more times
-    # rules[8] = ('conj', [[42], [42, 8]])
-    # 11: matches (42*k + 31*k), for k >= 1
-    # rules[11] = ('conj', [[42, 31], [42, 11, 31]])
+    return sum(matches_part2(string, rules) for string in strings)
 
 
-    string = 'aab'
-    print(matches(string, rules))
-
-    # k = 10
-    # rules[8] = ('conj', [[42] * i for i in range(1, k)])
-    # rules[11] = ('conj', [[42] * i + [31] * i for i in range(1, k)])
-    # print('should be false: ', matches('aaaaabbaabaaaaababaa', rules))
-    # print('should be true: ', matches('babbbbaabbbbbabbbbbbaabaaabaaa', rules))
-    # return sum(matches(string, rules) for string in strings)
-
-
-# 246 too high
 def main():
     rules, strings = ''.join(fileinput.input()).split('\n\n')
 
@@ -71,7 +87,7 @@ def main():
 
     rules = dict(map(parse_rule, rules.split('\n')))
     strings = strings.split('\n')
-    # print(part1(rules, strings))
+    print(part1(rules, strings))
     print(part2(rules, strings))
 
 
