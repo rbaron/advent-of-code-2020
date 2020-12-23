@@ -1,70 +1,85 @@
+from __future__ import annotations
+
 import fileinput
+import itertools
+
+from dataclasses import dataclass
 
 
-def add(idx, i, l):
-    return (idx + i) % l
+@dataclass
+class Node:
+    label: int
+    nxt: Node
 
 
-def move(curr_idx, cups):
-    print('cups: ', cups, 'current: ', cups[curr_idx])
-    curr = cups[curr_idx]
-    removed = [
-        cups[add(curr_idx, i + 1, 9)]
-        for i in range(3)
-    ]
-    print('picked up', removed)
-    cups = [
-        c for c in cups
-        if c not in removed
-    ]
-    # print('new cups', cups)
-
-    dest = add(curr, -1, 10)
-    print('dest: ', dest)
-    # while dest in removed:
-    while dest not in cups:
-        dest = add(dest, -1, 10)
-        print('dest: ', dest)
-    print('destination', dest)
-
-    for i, r in enumerate(removed):
-        dest_idx = cups.index(dest)
-        new_idx = add(dest_idx, i + 1, len(cups))
-        print(f'will insert {r} in {new_idx} of {cups}')
-        # cups = cups[:i] + [r] + cups[i:]
-        cups.insert(new_idx, r)
-
-    old_curr_idx = cups.index(curr)
-    new_idx = add(old_curr_idx, 1, 9)
-    return new_idx, cups
+def make_linked_list(labels):
+    node_by_label = {}
+    labels_iter = iter(labels)
+    first = prev = Node(next(labels_iter), nxt=None)
+    node_by_label[first.label] = first
+    for label in labels_iter:
+        prev.nxt = Node(label, nxt=None)
+        prev = prev.nxt
+        node_by_label[prev.label] = prev
+    prev.nxt = first
+    return first, node_by_label
 
 
-def part1(cups):
-    curr_idx = 0
-    for i in range(1, 101):
-        print(f'-- move {i} --')
-        curr_idx, cups = move(curr_idx, cups)
-        print()
+def move(node, node_by_label, max_label):
+    picked_up_labels = []
+    picked_up = node.nxt
+    last_picked_up = picked_up
+    for i in range(2):
+        picked_up_labels.append(last_picked_up.label)
+        last_picked_up = last_picked_up.nxt
+    picked_up_labels.append(last_picked_up.label)
+    node.nxt = last_picked_up.nxt
 
-    print('final: ', cups, f'({cups[curr_idx]})')
-    idx = (cups.index(1) + 1) % 9
-    res = ''
-    while len(res) != 8:
-        res += str(cups[idx])
-        idx = (idx + 1) % 9
-    return res
+    dest_label = node.label - 1
+    dest = None
+    while True:
+        l = dest_label % (max_label + 1)
+        if l not in picked_up_labels and l in node_by_label:
+            dest = node_by_label[l]
+            break
+        dest_label = dest_label - 1
+
+    last_picked_up.nxt = dest.nxt
+    dest.nxt = picked_up
+    return node.nxt
 
 
-def part2(cups):
-    pass
+def part1(labels):
+    node, node_by_label = make_linked_list(labels)
+    for i in range(100):
+        node = move(node, node_by_label, 9)
+    n = node_by_label[1]
+    res = []
+    for i in range(8):
+        n = n.nxt
+        res.append(n.label)
+    return ''.join(map(str, res))
+
+
+N_CUPS = 1_000_000
+N_ROUNDS = 10_000_000
+
+
+def part2(labels):
+    node, node_by_label = make_linked_list(
+        itertools.chain(labels, range(10, N_CUPS + 1)))
+    for i in range(N_ROUNDS):
+        node = move(node, node_by_label, N_CUPS)
+    n = node_by_label[1]
+    return n.nxt.label * n.nxt.nxt.label
 
 
 def main():
-    # cups = list(map(int, ('389125467')))
-    cups = list(map(int, ('712643589')))
+    # labels = list(map(int, '389125467'))
+    labels = list(map(int, '712643589'))
 
-    print(part1(cups))
-    # print(part2(cups))
+    print(part1(labels))
+    print(part2(labels))
 
 
 if __name__ == '__main__':
